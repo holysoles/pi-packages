@@ -1,0 +1,10 @@
+# Pi extension development
+
+- This repository contains independent npm Pi packages in the top-level `gatewayhelper/` and `handoff/` directories. The root `package.json` is a private workspace/test runner, not a publishable package.
+- Declare package entry points explicitly in each package manifest under `pi.extensions`. Resource paths are relative to that package root; keep package exports and npm `files` aligned with what consumers import.
+- Put Pi host modules (`@earendil-works/pi-ai`, `@earendil-works/pi-agent-core`, `@earendil-works/pi-coding-agent`, `@earendil-works/pi-tui`, and `typebox`) in `peerDependencies`, not `dependencies`; do not bundle or ship a physical copy of them.
+- Put other runtime imports in `dependencies` or `optionalDependencies`. Pi installs dependencies for npm/git packages, but does not install or modify local-path packages. Installed packages have separate module roots, so never rely on one package resolving another package's undeclared dependency.
+- Cross-package imports must use an exported package subpath and a declared dependency. Keep optional features lazy-loaded when the package should work without the optional dependency; handoff only loads gateway routing for `fallback/*` models.
+- Pi package sources for scoped npm packages require the leading `@`, for example `npm:@holysoles/pi-gatewayhelper@0.1.0`. Use a versioned source to pin it. Local sources such as `./gatewayhelper` are resolved relative to the settings file containing them.
+- Use `pi install <source>`, `pi remove <source>`, `pi list`, and `pi update --extensions` to manage packages. Check `pi list` after changing settings. A package install/update failure is reported as non-zero; startup may warn, skip that package's resources, and retry on the next start or `/reload`.
+- Keep package tests runnable independently (`npm test` in each package) and through the root workspace (`npm test`). Before release, run both tests and `npm pack --dry-run --json` in each package to check the published contents.
