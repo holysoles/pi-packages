@@ -1,0 +1,17 @@
+{
+  "name": "pi-packages",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/private-llm-gateway.mjs"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/private-llm-gateway/index.ts"
+    ]
+  }
+}
