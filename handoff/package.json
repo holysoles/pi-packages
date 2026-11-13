@@ -1,6 +1,7 @@
 {
   "name": "@holysoles/pi-handoff",
-  "version": "0.1.1",
+  "version": "0.1.2",
+  "keywords": ["pi-package"],
   "type": "module",
   "repository": {
     "url": "https://github.com/holysoles/pi-packages"
@@ -13,7 +14,10 @@
     "routing.mjs"
   ],
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "*"
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
   },
   "optionalDependencies": {
     "@holysoles/pi-gatewayhelper": "^0.1.0"

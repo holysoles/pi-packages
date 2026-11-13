@@ -15,13 +15,13 @@ A standalone Pi extension that summarizes the current session and opens a new se
 Install the pinned npm release:
 
 ```sh
-pi install npm:@holysoles/pi-handoff@0.1.0
+pi install npm:@holysoles/pi-handoff@0.1.2
 ```
 
 Remove the same release with:
 
 ```sh
-pi remove npm:@holysoles/pi-handoff@0.1.0
+pi remove npm:@holysoles/pi-handoff@0.1.2
 ```
 
 ## Usage
