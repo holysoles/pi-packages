@@ -1,8 +1,17 @@
 {
-  "name": "pi-packages",
+  "name": "@holysoles/pi-packages",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
+  "repository": {
+    "url": "https://github.com/holysoles/pi-packages"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "extensions/private-llm-gateway/index.ts",
+    "extensions/private-llm-gateway/fallback-model-routing.mjs"
+  ],
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"
   },

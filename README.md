@@ -41,7 +41,7 @@ At session startup, it can also synchronize mapped private model prices from Pi'
 
 #### Configuration
 
-Add a `privateLlmGateway` section to `~/.pi/agent/settings.json`. Replace the example provider and model IDs with providers configured in Pi and model IDs appropriate to your setup:
+Add a `privateLlmGateway` section to your personal/global `settings.json` (normally `~/.pi/agent/settings.json`). The extension reads this file synchronously during startup so virtual models are registered before initial model selection. It does not read project settings or apply project overrides. `PI_CODING_AGENT_DIR` selects the agent directory when set. Replace the example provider and model IDs with providers configured in Pi and model IDs appropriate to your setup:
 
 ```json
 {
@@ -80,15 +80,17 @@ Use the absolute entry-point path for your checkout. The two fallback IDs above 
 
 #### Extending
 
-Other extensions that make direct model calls (for example, a handoff extension) can share `parsePrivateLlmGatewaySettings` and `resolveFallbackModel` from `fallback-model-routing.mjs`. In this example, the consumer is `~/.pi/agent/extensions/handoff.ts`; adjust the relative import if your files are elsewhere:
+Other extensions that make direct model calls (for example, a handoff extension) can share `parsePrivateLlmGatewaySettings` and `resolveFallbackModel` from `fallback-model-routing.mjs`. Read the same global settings source so direct calls use the identical mapping and flags. In this example, the consumer is `~/.pi/agent/extensions/handoff.ts`; adjust the relative import if your files are elsewhere:
 
 ```ts
+import { getAgentDir, SettingsManager } from "@earendil-works/pi-coding-agent";
 import {
   parsePrivateLlmGatewaySettings,
   resolveFallbackModel,
 } from "../../../code/pi-packages/extensions/private-llm-gateway/fallback-model-routing.mjs";
 
-const gateway = parsePrivateLlmGatewaySettings(pi.getSettings());
+const globalSettings = SettingsManager.create(ctx.cwd, getAgentDir()).getGlobalSettings();
+const gateway = parsePrivateLlmGatewaySettings(globalSettings);
 if (!gateway) throw new Error("privateLlmGateway settings are missing or invalid");
 const model = resolveFallbackModel(id, ctx, gateway.models, gateway.publicModelFailover);
 return ctx.modelRegistry.complete(model, context, options);
@@ -98,7 +100,7 @@ Pass the mapping key as `id`. A Pi-registered virtual `fallback/<key>` model is 
 
 ## Verify
 
-Run the isolated tests on Node 22+ without starting Pi or changing your Pi configuration:
+Run the isolated tests on Node 24+ without starting Pi or changing your Pi configuration:
 
 ```sh
 npm test

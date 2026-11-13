@@ -21,11 +21,11 @@ function settings(overrides = {}) {
   return { privateLlmGateway: { models: mapping, ...overrides } };
 }
 
-function makeExtension(settingsValue) {
+function makeExtension() {
   const models = [];
   const handlers = new Map();
   factory({
-    getSettings: () => settingsValue,
+    getSettings: () => { throw new Error("extension must not use pi.getSettings()"); },
     on: (event, handler) => handlers.set(event, handler),
     registerVirtualModel: (model) => models.push(model),
   });
@@ -43,6 +43,13 @@ async function withAgentDir(prefix, run) {
     else process.env.PI_CODING_AGENT_DIR = previous;
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+async function withGatewaySettings(prefix, value, run) {
+  await withAgentDir(prefix, async (dir) => {
+    await writeFile(join(dir, "settings.json"), JSON.stringify(value));
+    await run(makeExtension(), dir);
+  });
 }
 
 function routingContext({ privateAvailable = true, privateAuth = true, publicAvailable = true } = {}) {
@@ -83,14 +90,15 @@ test("missing mapping registers no virtual models, adds no sync handler, and tou
     const original = '{"providers":{"keep":{"models":[{"id":"untouched"}]}}}\n';
     await writeFile(modelsPath, original);
 
-    const extension = makeExtension({});
+    await writeFile(join(dir, "settings.json"), JSON.stringify({}));
+    const extension = makeExtension();
     assert.deepEqual(extension.models, []);
     assert.equal(extension.handlers.has("session_start"), false);
     assert.equal(await readFile(modelsPath, "utf8"), original);
   });
 });
 
-test("malformed settings fail closed before registering models or sync handlers", () => {
+test("malformed settings fail closed before registering models or sync handlers", async () => {
   const invalidSettings = [
     { privateLlmGateway: {} },
     { privateLlmGateway: { models: [] } },
@@ -100,12 +108,19 @@ test("malformed settings fail closed before registering models or sync handlers"
     { privateLlmGateway: { models: mapping, priceSync: 0 } },
   ];
 
-  for (const value of invalidSettings) {
-    assert.equal(parsePrivateLlmGatewaySettings(value), undefined);
-    const extension = makeExtension(value);
+  await withAgentDir("pi-gateway-invalid-settings-", async (dir) => {
+    for (const value of invalidSettings) {
+      assert.equal(parsePrivateLlmGatewaySettings(value), undefined);
+      await writeFile(join(dir, "settings.json"), JSON.stringify(value));
+      const extension = makeExtension();
+      assert.deepEqual(extension.models, []);
+      assert.equal(extension.handlers.size, 0);
+    }
+    await writeFile(join(dir, "settings.json"), "{ malformed JSON");
+    const extension = makeExtension();
     assert.deepEqual(extension.models, []);
     assert.equal(extension.handlers.size, 0);
-  }
+  });
 });
 
 test("settings parser requires a mapping and defaults both policies to enabled", () => {
@@ -122,58 +137,60 @@ test("settings parser requires a mapping and defaults both policies to enabled",
   });
 });
 
-test("mapped virtual routing uses different private/public provider and model IDs with failover enabled by default", () => {
-  const extension = makeExtension(settings({ priceSync: false }));
-  assert.equal(extension.models.length, 1);
-  assert.equal(extension.models[0].provider, "fallback");
-  assert.equal(extension.models[0].id, "gateway-key");
-  const route = extension.models[0].route;
-  const { ctx, privateModel, publicModel } = routingContext();
-  const request = { reason: "user", thinkingLevel: "high" };
+test("mapped virtual routing uses different private/public provider and model IDs with failover enabled by default", async () => {
+  await withGatewaySettings("pi-gateway-routing-", settings({ priceSync: false }), async (extension) => {
+    assert.equal(extension.models.length, 1);
+    assert.equal(extension.models[0].provider, "fallback");
+    assert.equal(extension.models[0].id, "gateway-key");
+    const route = extension.models[0].route;
+    const { ctx, privateModel, publicModel } = routingContext();
+    const request = { reason: "user", thinkingLevel: "high" };
 
-  assert.deepEqual(route(request, ctx), { model: privateModel, thinkingLevel: "high", state: undefined });
-  const retry = route({
-    ...request,
-    reason: "retry",
-    failed: { model: privateModel, message: { stopReason: "error", errorMessage: "failed" } },
-  }, ctx);
-  assert.deepEqual(retry, { model: publicModel, thinkingLevel: "high", state: true });
-  assert.deepEqual(route({ ...request, reason: "continuation", state: retry.state }, ctx), {
-    model: publicModel,
-    thinkingLevel: "high",
-    state: true,
+    assert.deepEqual(route(request, ctx), { model: privateModel, thinkingLevel: "high", state: undefined });
+    const retry = route({
+      ...request,
+      reason: "retry",
+      failed: { model: privateModel, message: { stopReason: "error", errorMessage: "failed" } },
+    }, ctx);
+    assert.deepEqual(retry, { model: publicModel, thinkingLevel: "high", state: true });
+    assert.deepEqual(route({ ...request, reason: "continuation", state: retry.state }, ctx), {
+      model: publicModel,
+      thinkingLevel: "high",
+      state: true,
+    });
+
+    const missingAuth = routingContext({ privateAuth: false });
+    assert.deepEqual(route(request, missingAuth.ctx), { model: missingAuth.publicModel, thinkingLevel: "high", state: true });
+    const noPublic = routingContext({ publicAvailable: false });
+    assert.throws(() => route({ ...request, reason: "retry", failed: { model: noPublic.privateModel } }, noPublic.ctx),
+      /No available model/);
   });
-
-  const missingAuth = routingContext({ privateAuth: false });
-  assert.deepEqual(route(request, missingAuth.ctx), { model: missingAuth.publicModel, thinkingLevel: "high", state: true });
-  const noPublic = routingContext({ publicAvailable: false });
-  assert.throws(() => route({ ...request, reason: "retry", failed: { model: noPublic.privateModel } }, noPublic.ctx),
-    /No available model/);
 });
 
-test("disabled public failover never selects public models, including when private auth or model is missing", () => {
-  const extension = makeExtension(settings({ publicModelFailover: false, priceSync: false }));
-  const route = extension.models[0].route;
-  const request = { reason: "user", thinkingLevel: "medium" };
-  const available = routingContext();
-  assert.deepEqual(route(request, available.ctx), {
-    model: available.privateModel,
-    thinkingLevel: "medium",
-    state: undefined,
-  });
-  assert.throws(() => route({
-    ...request,
-    reason: "retry",
-    failed: { model: available.privateModel },
-  }, available.ctx), /Public model failover is disabled/);
+test("disabled public failover never selects public models, including when private auth or model is missing", async () => {
+  await withGatewaySettings("pi-gateway-disabled-failover-", settings({ publicModelFailover: false, priceSync: false }), async (extension) => {
+    const route = extension.models[0].route;
+    const request = { reason: "user", thinkingLevel: "medium" };
+    const available = routingContext();
+    assert.deepEqual(route(request, available.ctx), {
+      model: available.privateModel,
+      thinkingLevel: "medium",
+      state: undefined,
+    });
+    assert.throws(() => route({
+      ...request,
+      reason: "retry",
+      failed: { model: available.privateModel },
+    }, available.ctx), /Public model failover is disabled/);
 
-  for (const unavailable of [
-    routingContext({ privateAuth: false }),
-    routingContext({ privateAvailable: false }),
-  ]) {
-    assert.throws(() => route(request, unavailable.ctx), /No available model/);
-    assert.equal(unavailable.findCalls.some((candidate) => candidate === "public-catalog/public-catalog-model"), false);
-  }
+    for (const unavailable of [
+      routingContext({ privateAuth: false }),
+      routingContext({ privateAvailable: false }),
+    ]) {
+      assert.throws(() => route(request, unavailable.ctx), /No available model/);
+      assert.equal(unavailable.findCalls.some((candidate) => candidate === "public-catalog/public-catalog-model"), false);
+    }
+  });
 });
 
 test("shared resolver applies the handoff policy and respects disabled failover", () => {
@@ -198,8 +215,9 @@ test("priceSync false registers no handler and leaves models.json unchanged", as
     await writeFile(join(dir, "models-store.json"), JSON.stringify({
       "public-catalog": { models: [{ id: "public-catalog-model", type: "chat", cost: { input: 0.1 } }] },
     }));
+    await writeFile(join(dir, "settings.json"), JSON.stringify(settings({ priceSync: false })));
 
-    const extension = makeExtension(settings({ priceSync: false }));
+    const extension = makeExtension();
     assert.equal(extension.handlers.has("session_start"), false);
     assert.equal(await readFile(modelsPath, "utf8"), original);
   });
@@ -224,8 +242,9 @@ test("mapped price sync copies only the paired public chat cost to its configure
     };
     await writeFile(join(dir, "models.json"), JSON.stringify(config, null, 2));
     await writeFile(join(dir, "models-store.json"), JSON.stringify(catalog));
+    await writeFile(join(dir, "settings.json"), JSON.stringify(settings()));
 
-    const extension = makeExtension(settings());
+    const extension = makeExtension();
     const handler = extension.handlers.get("session_start");
     assert.equal(typeof handler, "function");
     const notifications = [];
@@ -260,7 +279,8 @@ test("missing public catalog pricing leaves the private cost unchanged", async (
     await writeFile(join(dir, "models-store.json"), JSON.stringify({ "public-catalog": { models: [
       { id: "public-catalog-model", type: "chat" },
     ] } }));
-    const extension = makeExtension(settings());
+    await writeFile(join(dir, "settings.json"), JSON.stringify(settings()));
+    const extension = makeExtension();
     const messages = [];
     await extension.handlers.get("session_start")({}, {
       ui: { notify: (message, type) => messages.push({ message, type }) },
@@ -283,7 +303,8 @@ test("price sync is a no-op when mapped prices already match", async () => {
     await writeFile(join(dir, "models-store.json"), JSON.stringify({
       "public-catalog": { models: [{ id: "public-catalog-model", type: "chat", cost: { input: 0.12 } }] },
     }));
-    const extension = makeExtension(settings());
+    await writeFile(join(dir, "settings.json"), JSON.stringify(settings()));
+    const extension = makeExtension();
     const notifications = [];
     let refreshes = 0;
     await extension.handlers.get("session_start")({}, {
@@ -309,7 +330,8 @@ test("price sync preserves edits made while another session holds the model conf
     ] } }));
     await mkdir(lock);
     await writeFile(join(lock, "owner"), `${process.pid}:another-session`);
-    const extension = makeExtension(settings());
+    await writeFile(join(dir, "settings.json"), JSON.stringify(settings()));
+    const extension = makeExtension();
     let completed = false;
     const syncing = extension.handlers.get("session_start")({}, {
       ui: { notify: (_message, type) => { if (type === "info") completed = true; } },

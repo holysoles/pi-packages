@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import {
   mkdir,
   open,
@@ -14,6 +15,13 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { chooseFallbackRoute, parsePrivateLlmGatewaySettings } from "./fallback-model-routing.mjs";
+
+function getAgentDir() {
+  const configured = process.env.PI_CODING_AGENT_DIR;
+  if (configured === "~") return homedir();
+  if (configured?.startsWith("~/")) return join(homedir(), configured.slice(2));
+  return configured || join(homedir(), ".pi", "agent");
+}
 
 type JsonRecord = Record<string, unknown>;
 type ModelMapping = {
@@ -187,7 +195,7 @@ async function replaceModelsFile(resolvedPath: string, configuration: unknown, e
 }
 
 async function synchronizeMappedPrices(models: Record<string, ModelMapping>, ctx: any) {
-  const agentDir = process.env.PI_CODING_AGENT_DIR || join(homedir(), ".pi", "agent");
+  const agentDir = getAgentDir();
   const modelsPath = join(agentDir, "models.json");
   const catalogPath = join(agentDir, "models-store.json");
   let releaseLock: (() => Promise<void>) | undefined;
@@ -246,8 +254,16 @@ async function synchronizeMappedPrices(models: Record<string, ModelMapping>, ctx
   }
 }
 
+function readGlobalSettings() {
+  try {
+    return JSON.parse(readFileSync(join(getAgentDir(), "settings.json"), "utf8")) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function (pi: ExtensionAPI) {
-  const settings = parsePrivateLlmGatewaySettings(pi.getSettings());
+  const settings = parsePrivateLlmGatewaySettings(readGlobalSettings());
   if (!settings) return;
 
   for (const id of Object.keys(settings.models)) {
