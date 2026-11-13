@@ -15,13 +15,13 @@ A Pi extension for routing virtual models through a private LLM gateway, with op
 Install the pinned npm release:
 
 ```sh
-pi install npm:@holysoles/pi-gatewayhelper@0.1.0
+pi install npm:@holysoles/pi-gatewayhelper@0.1.2
 ```
 
 Remove the same release with:
 
 ```sh
-pi remove npm:@holysoles/pi-gatewayhelper@0.1.0
+pi remove npm:@holysoles/pi-gatewayhelper@0.1.2
 ```
 
 For a local checkout, run `pi install ./gatewayhelper` from the repository root; remove it with `pi remove ./gatewayhelper`.

@@ -17,14 +17,14 @@ A monorepo of independently published Pi packages in top-level package directori
 Install the pinned npm releases:
 
 ```sh
-pi install npm:@holysoles/pi-gatewayhelper@0.1.0
+pi install npm:@holysoles/pi-gatewayhelper@0.1.2
 pi install npm:@holysoles/pi-handoff@0.1.2
 ```
 
 Remove the same releases with:
 
 ```sh
-pi remove npm:@holysoles/pi-gatewayhelper@0.1.0
+pi remove npm:@holysoles/pi-gatewayhelper@0.1.2
 pi remove npm:@holysoles/pi-handoff@0.1.2
 ```
 
