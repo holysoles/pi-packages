@@ -14,7 +14,7 @@ import { isDeepStrictEqual } from "node:util";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { chooseFallbackRoute, parsePrivateLlmGatewaySettings } from "./fallback-model-routing.mjs";
+import { chooseFallbackRoute, parsePrivateLlmGatewaySettings } from "./routing.mjs";
 
 function getAgentDir() {
   const configured = process.env.PI_CODING_AGENT_DIR;

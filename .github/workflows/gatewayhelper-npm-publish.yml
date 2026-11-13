@@ -1,9 +1,9 @@
-name: npm staged publish
+name: Gateway helper npm staged publish
 
 on:
   push:
     tags:
-      - "v*"
+      - "gatewayhelper-v*"
 
 jobs:
   publish:
@@ -21,17 +21,19 @@ jobs:
       - name: Install pinned npm CLI
         run: npm install --global npm@11.15.0
       - run: npm test
+        working-directory: gatewayhelper
       - name: Verify tag matches package version
+        working-directory: gatewayhelper
         run: |
           node --input-type=module <<'NODE'
           import { readFileSync } from "node:fs";
 
           const pkg = JSON.parse(readFileSync("package.json", "utf8"));
-          const version = pkg.version;
-          const expectedTag = `v${version}`;
+          const expectedTag = `gatewayhelper-v${pkg.version}`;
           if (process.env.GITHUB_REF_NAME !== expectedTag) {
             console.error("Tag does not match package version");
             process.exit(1);
           }
           NODE
       - run: npm stage publish
+        working-directory: gatewayhelper

@@ -1,0 +1,29 @@
+{
+  "name": "@holysoles/pi-gatewayhelper",
+  "version": "0.1.0",
+  "type": "module",
+  "repository": {
+    "url": "https://github.com/holysoles/pi-packages"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "index.ts",
+    "routing.mjs"
+  ],
+  "exports": {
+    "./routing": "./routing.mjs"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/private-llm-gateway.mjs"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

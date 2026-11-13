@@ -1,0 +1,29 @@
+{
+  "name": "@holysoles/pi-handoff",
+  "version": "0.1.0",
+  "type": "module",
+  "repository": {
+    "url": "https://github.com/holysoles/pi-packages"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "index.ts",
+    "routing.mjs"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "optionalDependencies": {
+    "@holysoles/pi-gatewayhelper": "^0.1.0"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/handoff.mjs"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

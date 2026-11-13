@@ -3,12 +3,12 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import factory from "../extensions/private-llm-gateway/index.ts";
+import factory from "../index.ts";
 import {
   chooseFallbackRoute,
   parsePrivateLlmGatewaySettings,
   resolveFallbackModel,
-} from "../extensions/private-llm-gateway/fallback-model-routing.mjs";
+} from "../routing.mjs";
 
 const mapping = {
   "gateway-key": {

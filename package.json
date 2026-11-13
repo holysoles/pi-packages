@@ -1,26 +1,15 @@
 {
-  "name": "@holysoles/pi-packages",
-  "version": "0.1.1",
+  "name": "pi-packages",
+  "private": true,
   "type": "module",
   "repository": {
     "url": "https://github.com/holysoles/pi-packages"
   },
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "extensions/private-llm-gateway/index.ts",
-    "extensions/private-llm-gateway/fallback-model-routing.mjs"
+  "workspaces": [
+    "gatewayhelper",
+    "handoff"
   ],
-  "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "*"
-  },
   "scripts": {
-    "test": "node --experimental-strip-types --test tests/private-llm-gateway.mjs"
-  },
-  "pi": {
-    "extensions": [
-      "./extensions/private-llm-gateway/index.ts"
-    ]
+    "test": "npm run test --workspaces --if-present"
   }
 }
