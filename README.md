@@ -17,13 +17,25 @@ A collection of Pi extensions.
 
 For local development, run `pi install ./` from this repository's root. The package manifest declares the extension entry point; no build step or bundled dependencies are required.
 
-After a Git release has been created, install its pinned tag (not a moving branch):
+Install the pinned npm release (not a moving version):
+
+```sh
+pi install npm:@holysoles/pi-packages@0.1.1
+```
+
+Remove the same npm release with:
+
+```sh
+pi remove npm:@holysoles/pi-packages@0.1.1
+```
+
+Alternatively, install the pinned Git tag (not a moving branch):
 
 ```sh
 pi install git:github.com/holysoles/pi-packages@v0.1.0
 ```
 
-Remove the same source you installed. For the tagged source above:
+Remove the same Git source with:
 
 ```sh
 pi remove git:github.com/holysoles/pi-packages@v0.1.0
