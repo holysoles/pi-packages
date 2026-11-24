@@ -15,6 +15,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { chooseFallbackRoute, parsePrivateLlmGatewaySettings } from "./routing.mjs";
+import { createSpendClient, createSpendLifecycle, SETUP_MESSAGE } from "./spend.mjs";
 
 function getAgentDir() {
   const configured = process.env.PI_CODING_AGENT_DIR;
@@ -263,7 +264,55 @@ function readGlobalSettings() {
 }
 
 export default function (pi: ExtensionAPI) {
-  const settings = parsePrivateLlmGatewaySettings(readGlobalSettings());
+  const globalSettings = readGlobalSettings();
+  const settings = parsePrivateLlmGatewaySettings(globalSettings);
+  const gatewaySettings = isRecord(globalSettings) && isRecord(globalSettings.privateLlmGateway)
+    ? globalSettings.privateLlmGateway
+    : undefined;
+  const hasSpendSetting = gatewaySettings !== undefined && Object.hasOwn(gatewaySettings, "spend");
+  const spendConfig = hasSpendSetting && isRecord(gatewaySettings.spend) ? gatewaySettings.spend : undefined;
+  const spendSetupError = !hasSpendSetting
+    ? SETUP_MESSAGE
+    : spendConfig ? undefined : "Daily spend configuration must be an object in global settings.";
+  let activeSpendLifecycle: ReturnType<typeof createSpendLifecycle> | undefined;
+
+  function createLifecycle(ctx: any) {
+    let client;
+    let error = spendSetupError;
+    if (!error && spendConfig) {
+      try {
+        client = createSpendClient(spendConfig, ctx);
+      } catch (setupError) {
+        error = setupError instanceof Error ? setupError.message : "Daily spend configuration is invalid.";
+      }
+    }
+    return createSpendLifecycle(client, spendConfig?.showFooter === true, ctx, error);
+  }
+
+  pi.registerCommand("spend", {
+    description: "Show today's EnMaaS metered spend",
+    handler: async (_args, ctx) => {
+      if (!activeSpendLifecycle && hasSpendSetting) activeSpendLifecycle = createLifecycle(ctx);
+      if (!activeSpendLifecycle) {
+        ctx.ui.notify(SETUP_MESSAGE, "warning");
+        return;
+      }
+      await activeSpendLifecycle.command();
+    },
+  });
+
+  if (hasSpendSetting) {
+    pi.on("session_start", (_event, ctx) => {
+      activeSpendLifecycle?.dispose();
+      activeSpendLifecycle = createLifecycle(ctx);
+      activeSpendLifecycle.start();
+    });
+    pi.on("session_shutdown", () => {
+      activeSpendLifecycle?.dispose();
+      activeSpendLifecycle = undefined;
+    });
+  }
+
   if (!settings) return;
 
   for (const id of Object.keys(settings.models)) {

@@ -11,7 +11,8 @@
   },
   "files": [
     "index.ts",
-    "routing.mjs"
+    "routing.mjs",
+    "spend.mjs"
   ],
   "exports": {
     "./routing": "./routing.mjs"
@@ -20,7 +21,7 @@
     "@earendil-works/pi-coding-agent": "*"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test tests/private-llm-gateway.mjs"
+    "test": "node --experimental-strip-types --test tests/private-llm-gateway.mjs tests/spend.mjs"
   },
   "pi": {
     "extensions": [

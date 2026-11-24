@@ -6,6 +6,7 @@ A Pi extension for routing virtual models through a private LLM gateway, with op
 
 - [Install](#install)
 - [Configuration](#configuration)
+- [Daily spend](#daily-spend)
 - [Verify](#verify)
 
 <!-- tocstop -->
@@ -82,6 +83,28 @@ return ctx.modelRegistry.complete(model, context, options);
 ```
 
 Pass the mapping key as `id`. A registered `fallback/<key>` is a routing alias, not a physical provider model for a direct `modelRegistry.complete()` call; resolve it first and pass `publicModelFailover` so a disabled policy is respected.
+
+## Daily spend
+
+Daily spend is provided by [PriceTag Metering](https://github.com/redhat-et/pricetag-metering). Add a `spend` object to `privateLlmGateway` in global settings, merging it with the configuration above:
+
+```json
+{
+  "privateLlmGateway": {
+    "spend": {
+      "provider": "my-private-gateway",
+      "dashboardOrigin": "https://dashboard.enmaas.devshift.net",
+      "showFooter": true,
+      "refreshIntervalMinutes": 15,
+      "useLocalDay": false
+    }
+  }
+}
+```
+
+`provider` must name a provider configured in Pi with an available API key. The extension posts that key to `/login` on the explicitly configured `dashboardOrigin` to authenticate with PriceTag Metering; it is not sent to the inference endpoint. Use only an HTTPS origin you trust to receive the key. The example origin is not a default: change it only to the trusted PriceTag Metering dashboard origin you intend to use.
+
+By default, `/spend` uses the UTC calendar date and requests it using PriceTag’s date-only range. This assumes PriceTag interprets dates in UTC. Set `useLocalDay: true` to use Pi’s local calendar day instead, including daylight-saving changes. Pi sends both local midnight boundaries as UTC timestamps, so this option requires PriceTag to support `range=exact`. With `showFooter: true`, the TUI footer refreshes at startup, at midnight in the selected timezone, and every `refreshIntervalMinutes` minutes (default `15`; whole numbers from 1 to 1440). `/spend` still refreshes on demand. Run `/reload` after changing settings.
 
 ## Verify
 
