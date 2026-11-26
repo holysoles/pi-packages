@@ -334,6 +334,9 @@ export default function (pi: ExtensionAPI) {
           settings.models,
           settings.publicModelFailover,
         );
+        activeSpendLifecycle?.setFooterVisible(
+          route.model.provider !== mapping.public.provider || route.model.id !== mapping.public.id,
+        );
         return { ...route, thinkingLevel: request.thinkingLevel };
       },
     });

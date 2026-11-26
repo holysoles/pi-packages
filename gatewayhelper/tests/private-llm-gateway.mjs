@@ -221,6 +221,32 @@ test("mapped virtual routing uses different private/public provider and model ID
   });
 });
 
+test("daily spend footer clears when a fallback model routes to its public backup", async () => {
+  await withGatewaySettings("pi-gateway-spend-fallback-", settings({
+    priceSync: false,
+    spend: { provider: "metered-provider", dashboardOrigin: "https://dashboard.example", showFooter: true },
+  }), async (extension) => {
+    const status = [];
+    const ctx = {
+      mode: "tui",
+      ui: { setStatus: (...args) => status.push(args), notify() {} },
+      modelRegistry: {
+        find(provider, id) {
+          if (provider === mapping["gateway-key"].public.provider && id === mapping["gateway-key"].public.id) {
+            return { provider, id };
+          }
+        },
+        hasConfiguredAuth: () => false,
+      },
+    };
+    await extension.fire("session_start", ctx);
+    const route = extension.models[0].route({ reason: "user", thinkingLevel: "low" }, ctx);
+    assert.equal(route.model.provider, mapping["gateway-key"].public.provider);
+    assert.deepEqual(status.at(-1), ["gatewayhelper-spend", undefined]);
+    await extension.fire("session_shutdown", ctx);
+  });
+});
+
 test("disabled public failover never selects public models, including when private auth or model is missing", async () => {
   await withGatewaySettings("pi-gateway-disabled-failover-", settings({ publicModelFailover: false, priceSync: false }), async (extension) => {
     const route = extension.models[0].route;

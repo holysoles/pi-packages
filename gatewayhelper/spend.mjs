@@ -239,9 +239,10 @@ export function createSpendLifecycle(client, showFooter, ctx, setupError) {
   const dayLabel = client?.useLocalDay ? "local" : "UTC";
   const currentDate = client?.useLocalDay ? localDate : () => new Date().toISOString().slice(0, 10);
   const footerEnabled = showFooter && ctx.mode === "tui" && typeof ctx.ui.setStatus === "function";
+  let footerVisible = true;
 
   function setStatus(value) {
-    if (!disposed && footerEnabled) ctx.ui.setStatus(STATUS_KEY, value);
+    if (!disposed && footerEnabled && footerVisible) ctx.ui.setStatus(STATUS_KEY, value);
   }
 
   function getTotal(date) {
@@ -318,6 +319,12 @@ export function createSpendLifecycle(client, showFooter, ctx, setupError) {
       scheduleMidnight();
     },
     command,
+    setFooterVisible(visible) {
+      if (!footerEnabled || footerVisible === visible) return;
+      footerVisible = visible;
+      if (visible) void refreshFooter();
+      else ctx.ui.setStatus(STATUS_KEY, undefined);
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
