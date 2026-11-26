@@ -17,15 +17,15 @@ A monorepo of independently published Pi packages in top-level package directori
 Install the pinned npm releases:
 
 ```sh
-pi install npm:@holysoles/pi-gatewayhelper@0.2.1
-pi install npm:@holysoles/pi-handoff@0.1.2
+pi install npm:@holysoles/pi-gatewayhelper
+pi install npm:@holysoles/pi-handoff
 ```
 
 Remove the same releases with:
 
 ```sh
-pi remove npm:@holysoles/pi-gatewayhelper@0.2.1
-pi remove npm:@holysoles/pi-handoff@0.1.2
+pi remove npm:@holysoles/pi-gatewayhelper
+pi remove npm:@holysoles/pi-handoff
 ```
 
 For local development, install the workspace dependencies first, then run these commands from the repository root:
